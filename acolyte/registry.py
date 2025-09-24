@@ -1,0 +1,12 @@
+from __future__ import annotations
+from typing import Callable, Awaitable, Dict, Any
+from .scripts import example
+
+Scraper = Callable[[dict], Awaitable[dict]]
+
+REGISTRY: Dict[str, Scraper] = {
+    "example": example.run,
+}
+
+def get_scraper(script_id: str) -> Scraper | None:
+    return REGISTRY.get(script_id)
