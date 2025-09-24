@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=69", "wheel>=0.42"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "acolyte"
+version = "0.1.0"
+description = "Web scraper for automation"
+readme = "README.md"
+requires-python = ">=3.13"
+authors = [{ name = "Radosław Skupnik" }]
+dependencies = [
+  "fastapi>=0.111",
+  "uvicorn[standard]>=0.30"
+]
+
+[project.scripts]
+acolyte = "acolyte.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["acolyte*"]
