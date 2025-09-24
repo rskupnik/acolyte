@@ -1,0 +1,42 @@
+name: Build & Deploy
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ether-runner-acolyte
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        run: docker buildx create --use
+
+      - name: Build Docker Image
+        run: |
+          docker buildx build \
+            --cache-from type=local,src=/mnt/docker-cache \
+            --cache-to type=local,dest=/mnt/docker-cache \
+            --load \
+            -t acolyte \
+            -f Dockerfile .
+      
+      - name: Push Docker image
+        run: |
+          export DOCKER_CONFIG=/tmp/docker-config
+          docker tag acolyte rskupnik/ether:acolyte
+          docker push rskupnik/ether:acolyte
+
+      # - name: Install kubectl
+      #   uses: azure/setup-kubectl@v3
+      #   with:
+      #     version: 'v1.33.2'
+      
+      # - name: Restart deployment with annotation
+      #   run: |
+      #     kubectl patch deployment edgar \
+      #       -n edgar \
+      #       -p "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"ci-restart-timestamp\":\"$(date +%s)\"}}}}}"
