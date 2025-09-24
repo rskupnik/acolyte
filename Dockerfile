@@ -24,7 +24,7 @@ RUN playwright install chromium \
  && playwright install-deps
 
 # Build wheel for your app
-COPY pyproject.toml README.md ./
+COPY pyproject.toml ./
 COPY acolyte ./acolyte
 RUN pip install --no-cache-dir build \
  && python -m build --wheel --outdir /dist
