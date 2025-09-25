@@ -3,6 +3,7 @@ import asyncio, time, uuid, json
 from dataclasses import dataclass, asdict
 from typing import Any, Dict, Optional
 import httpx
+import traceback
 
 @dataclass
 class Job:
@@ -75,6 +76,6 @@ async def _post_webhook(job: Job) -> None:
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
             await client.post(job.webhook_url, json=payload)
-    except Exception:
-        # swallow errors
-        pass
+    except Exception as e:
+        print(f"[Webhook Error] Failed to POST to {job.webhook_url}: {e}")
+        traceback.print_exc()
