@@ -31,6 +31,8 @@ async def scrape(payload: ScrapeIn = Body(...)) -> ScrapeAccepted:
     job = jobs.create_job(payload.script_id, webhook)
     args = payload.args or {}
 
+    print("Scrape received")
+
     import asyncio
     asyncio.create_task(jobs.run_job(job, runner, args))
     return ScrapeAccepted(accepted=True, job_id=job.job_id)
