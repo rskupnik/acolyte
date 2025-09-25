@@ -1,7 +1,7 @@
 ARG PYTHON_VERSION=3.13
 
 ############################
-# Stage: deps  (heavy, cacheable)
+# Stage: deps
 ############################
 FROM python:${PYTHON_VERSION}-slim AS deps
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
@@ -33,7 +33,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 RUN playwright install chromium
 
 ############################
-# Stage: build (your code → wheel)
+# Stage: build
 ############################
 FROM python:${PYTHON_VERSION}-slim AS build
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PATH=/opt/venv/bin:$PATH
@@ -54,7 +54,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     python -m build --wheel --outdir /dist
 
 ############################
-# Stage: runtime (smallest possible)
+# Stage: runtime
 ############################
 FROM python:${PYTHON_VERSION}-slim AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
@@ -64,18 +64,18 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
 WORKDIR /app
 RUN useradd -m appuser
 
+# Copy the venv so "playwright" exists in PATH
+COPY --from=deps /opt/venv /opt/venv
+
 # System libs required by Chromium in FINAL image
-# Keep this here so the runtime actually has the libraries.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       curl ca-certificates \
-    && rm -rf /var/lib/apt/lists/* && \
-    playwright install-deps
+    && rm -rf /var/lib/apt/lists/* \
+    && playwright install-deps
 
-# Bring in venv (with Python deps installed) and the browsers dir
-COPY --from=deps /opt/venv /opt/venv
+# Bring in the browsers dir
 COPY --from=deps /ms-playwright /ms-playwright
 
-# Install your app offline from the built wheel
 COPY --from=build /dist /dist
 RUN pip install --no-index --find-links=/dist acolyte
 
