@@ -26,9 +26,11 @@ async def scrape(payload: ScrapeIn = Body(...)) -> ScrapeAccepted:
     if not runner:
         raise HTTPException(status_code=404, detail="unknown script_id")
 
-    job = jobs.create_job(payload.script_id, payload.webhook_url)
-    # Detach the actual run
+    webhook = str(payload.webhook_url) if payload.webhook_url else None
+
+    job = jobs.create_job(payload.script_id, webhook)
     args = payload.args or {}
+
     import asyncio
     asyncio.create_task(jobs.run_job(job, runner, args))
     return ScrapeAccepted(accepted=True, job_id=job.job_id)
