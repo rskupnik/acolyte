@@ -1,30 +1,61 @@
 ARG PYTHON_VERSION=3.13
 
-# ---------- Builder
-FROM python:${PYTHON_VERSION}-slim AS builder
+############################
+# Stage: deps  (heavy, cacheable)
+############################
+FROM python:${PYTHON_VERSION}-slim AS deps
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1 \
     PATH=/opt/venv/bin:$PATH \
     PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 WORKDIR /app
+
+# System build deps for wheels (only if you need to build native deps)
+# Keep minimal; this layer rarely changes.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# venv + deps
+# Create venv
 RUN python -m venv /opt/venv
-COPY requirements.txt .
-RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
-# Install Chromium *into* $PLAYWRIGHT_BROWSERS_PATH (in this stage)
+# Copy ONLY requirements to maximize cache hits
+COPY requirements.txt .
+
+# Install Python deps into the venv (with pip cache mount for speed)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip && \
+    pip install -r requirements.txt
+
+# Install Playwright browsers to a stable path & keep them in this layer
 RUN playwright install chromium
 
-# Build your app wheel
-COPY pyproject.toml ./
-COPY acolyte ./acolyte
-RUN pip install --no-cache-dir build && python -m build --wheel --outdir /dist
+############################
+# Stage: build (your code → wheel)
+############################
+FROM python:${PYTHON_VERSION}-slim AS build
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PATH=/opt/venv/bin:$PATH
+WORKDIR /app
 
-# ---------- Runtime
+# Reuse the venv from deps for the build toolchain (no network re-install)
+COPY --from=deps /opt/venv /opt/venv
+
+# Copy only files needed to compute the wheel first to improve cache
+COPY pyproject.toml ./
+
+# Copy your source code last (this is what changes most often)
+COPY acolyte ./acolyte
+
+# Build the wheel; keep build tools out of final image
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install build && \
+    python -m build --wheel --outdir /dist
+
+############################
+# Stage: runtime (smallest possible)
+############################
 FROM python:${PYTHON_VERSION}-slim AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
     PATH=/opt/venv/bin:$PATH \
@@ -33,20 +64,20 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
 WORKDIR /app
 RUN useradd -m appuser
 
-# Copy venv, built wheel, and the browsers directory from builder
-COPY --from=builder /opt/venv /opt/venv
-COPY --from=builder /dist /dist
-COPY --from=builder /ms-playwright /ms-playwright
-
-# Install system deps required by Chromium in the FINAL image
-# (playwright install-deps wraps apt-get; do it here so runtime has the libs)
+# System libs required by Chromium in FINAL image
+# Keep this here so the runtime actually has the libraries.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       curl ca-certificates \
-    && rm -rf /var/lib/apt/lists/* \
-    && playwright install-deps
+    && rm -rf /var/lib/apt/lists/* && \
+    playwright install-deps
 
-# Install your app offline from /dist
-RUN pip install --no-cache-dir --no-index --find-links=/dist acolyte
+# Bring in venv (with Python deps installed) and the browsers dir
+COPY --from=deps /opt/venv /opt/venv
+COPY --from=deps /ms-playwright /ms-playwright
+
+# Install your app offline from the built wheel
+COPY --from=build /dist /dist
+RUN pip install --no-index --find-links=/dist acolyte
 
 USER appuser
 EXPOSE 8000
