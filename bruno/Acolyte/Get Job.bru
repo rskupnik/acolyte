@@ -1,0 +1,15 @@
+meta {
+  name: Get Job
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{url}}/jobs/{{job_id}}
+  body: none
+  auth: inherit
+}
+
+vars:pre-request {
+  job_id: 83a32f2c9aab43b2ad5c8ab2322c0054
+}

@@ -1,0 +1,35 @@
+meta {
+  name: Driver License Check
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{url}}/scrape
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "script_id": "driver_license_check",
+    "args": {
+      "input": [
+        {
+          "imie": "Radosław",
+          "nazwisko": "Skupnik",
+          "numer_dokumentu": "dupa"
+        }
+      ]
+    }
+  }
+}
+
+script:post-response {
+  const data = res.getBody();
+  bru.setVar("job_id", data.job_id);
+}
