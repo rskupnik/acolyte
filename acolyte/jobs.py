@@ -75,7 +75,7 @@ async def _post_webhook(job: Job) -> None:
     timeout = httpx.Timeout(10.0, connect=5.0)
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
-            await client.post(job.webhook_url, json=payload)
+            await client.post(job.webhook_url, json=payload, verify=False)
     except Exception as e:
         print(f"[Webhook Error] Failed to POST to {job.webhook_url}: {e}")
         traceback.print_exc()
