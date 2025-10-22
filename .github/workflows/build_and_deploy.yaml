@@ -27,8 +27,8 @@ jobs:
       - name: Push Docker image
         run: |
           export DOCKER_CONFIG=/tmp/docker-config
-          docker tag acolyte rskupnik/ether:acolyte
-          docker push rskupnik/ether:acolyte
+          docker tag blog registry.gitlab.com/myzreal/ether/acolyte:latest
+          docker push registry.gitlab.com/myzreal/ether/acolyte:latest
 
       - name: Install kubectl
         uses: azure/setup-kubectl@v3
