@@ -9,6 +9,7 @@ def main() -> None:
         port=config.PORT,
         log_level=config.LOG_LEVEL,
         workers=config.WORKERS,
+        access_log=False
     )
 
 if __name__ == "__main__":
